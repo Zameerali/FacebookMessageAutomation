@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 
 const LoginPage = ({ setToken }) => {
   const [modalOpen, setModalOpen] = useState(false);
+  const [error, setError] = useState('');
 
   const login = () => {
     window.FB.login(
@@ -11,6 +12,8 @@ const LoginPage = ({ setToken }) => {
         if (response.authResponse) {
           setToken(response.authResponse.accessToken);
           setModalOpen(false);
+        } else {
+          setError('Facebook login failed. Please try again.');
         }
       },
       { scope: 'pages_messaging,pages_show_list' }
@@ -18,29 +21,33 @@ const LoginPage = ({ setToken }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-lg text-center">
-        <h1 className="text-2xl font-bold mb-4">Messenger Automation</h1>
+    <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md transform transition-all duration-300 hover:scale-105">
+        <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">Messenger Automation</h1>
         <button
           onClick={() => setModalOpen(true)}
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 flex items-center justify-center"
         >
+          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c2.76 0 5.26-1.12 7.07-2.93l-1.41-1.41C16.24 19.08 14.24 20 12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8c0 1.24-.28 2.41-.76 3.45l1.47 1.47C21.47 15.18 22 13.62 22 12c0-5.52-4.48-10-10-10zm-1 14v-2h2v2h-2zm0-4V8h2v4h-2z"/>
+          </svg>
           Login with Facebook
         </button>
+        {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
         {modalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white p-6 rounded-lg shadow-lg">
-              <h2 className="text-xl font-semibold mb-4">Facebook Login</h2>
-              <p className="mb-4">Click below to authenticate with Facebook.</p>
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-sm">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Facebook Authentication</h2>
+              <p className="text-gray-600 mb-6">Click below to log in with your Facebook account.</p>
               <button
                 onClick={login}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-200"
               >
                 Authenticate
               </button>
               <button
                 onClick={() => setModalOpen(false)}
-                className="ml-4 text-gray-600 hover:text-gray-800"
+                className="w-full mt-4 text-gray-600 hover:text-gray-800"
               >
                 Cancel
               </button>
@@ -57,6 +64,7 @@ const PagesPage = ({ token }) => {
   const [selectedPage, setSelectedPage] = useState('');
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -70,6 +78,10 @@ const PagesPage = ({ token }) => {
   }, [token]);
 
   const sendMessage = () => {
+    if (!selectedPage || !message) {
+      setStatus('Please select a Page and enter a message.');
+      return;
+    }
     axios
       .post(
         'https://butjwogzvvoulankayaj.supabase.co/functions/v1/send-messages',
@@ -81,41 +93,81 @@ const PagesPage = ({ token }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg">
-        <h1 className="text-2xl font-bold mb-4">Send Messages</h1>
-        <select
-          onChange={(e) => setSelectedPage(e.target.value)}
-          className="w-full p-2 mb-4 border rounded-lg"
-        >
-          <option value="">Select a Page</option>
+    <div className="min-h-screen bg-gray-100 flex">
+      {/* Sidebar */}
+      <div
+        className={`fixed inset-y-0 left-0 w-64 bg-white shadow-lg transform ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } md:translate-x-0 transition-transform duration-300 z-40`}
+      >
+        <div className="p-4 border-b">
+          <h2 className="text-xl font-bold text-gray-800">Your Pages</h2>
+        </div>
+        <div className="p-4">
           {pages.map((page) => (
-            <option key={page.id} value={page.id}>
+            <button
+              key={page.id}
+              onClick={() => {
+                setSelectedPage(page.id);
+                setSidebarOpen(false);
+              }}
+              className={`w-full text-left p-2 rounded-lg mb-2 ${
+                selectedPage === page.id ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'
+              }`}
+            >
               {page.name}
-            </option>
+            </button>
           ))}
-        </select>
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Enter message (e.g., Your account is active)"
-          className="w-full p-2 mb-4 border rounded-lg"
-        />
+        </div>
+      </div>
+      {/* Main Content */}
+      <div className="flex-1 p-4 md:ml-64">
         <button
-          onClick={sendMessage}
-          className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700"
+          className="md:hidden bg-blue-600 text-white p-2 rounded-lg mb-4"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
         >
-          Send
+          {sidebarOpen ? 'Close' : 'Open'} Pages
         </button>
-        {status && <p className="mt-4 text-center text-gray-600">{status}</p>}
+        <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-6">
+          <h1 className="text-2xl font-bold text-gray-800 mb-6">Send Messages</h1>
+          <div className="mb-4">
+            <label className="block text-gray-600 mb-2">Selected Page</label>
+            <p className="p-2 border rounded-lg">
+              {pages.find((p) => p.id === selectedPage)?.name || 'No Page Selected'}
+            </p>
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-600 mb-2">Message</label>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Enter message (e.g., Your account is active)"
+              className="w-full p-3 border rounded-lg resize-y min-h-[100px]"
+            />
+          </div>
+          <button
+            onClick={sendMessage}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200"
+          >
+            Send Messages
+          </button>
+          {status && (
+            <p
+              className={`mt-4 text-center ${
+                status.includes('Error') ? 'text-red-500' : 'text-green-500'
+              }`}
+            >
+              {status}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
 function App() {
-  const [token, setToken] = useState('');
+  const [token, setToken] = useState(localStorage.getItem('fbToken') || '');
 
   useEffect(() => {
     window.FB.init({
@@ -123,15 +175,13 @@ function App() {
       version: 'v20.0',
       xfbml: true,
     });
-  }, []);
+    if (token) localStorage.setItem('fbToken', token);
+  }, [token]);
 
   return (
     <Router>
       <Routes>
-        <Route
-          path="/"
-          element={<LoginPage setToken={setToken} />}
-        />
+        <Route path="/" element={<LoginPage setToken={setToken} />} />
         <Route
           path="/pages"
           element={token ? <PagesPage token={token} /> : <Navigate to="/" />}
