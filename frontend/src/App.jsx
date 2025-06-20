@@ -1,17 +1,31 @@
 import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Route, Routes, Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 
+// --- Login Page ---
 const LoginPage = ({ setToken }) => {
-  const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // If already logged in
+    window.FB.getLoginStatus((response) => {
+      if (response.status === 'connected') {
+        setToken(response.authResponse.accessToken);
+        localStorage.setItem('fbToken', response.authResponse.accessToken);
+        navigate('/pages');
+      }
+    });
+  }, [navigate, setToken]);
 
   const login = () => {
     window.FB.login(
       (response) => {
         if (response.authResponse) {
-          setToken(response.authResponse.accessToken);
-          setModalOpen(false);
+          const token = response.authResponse.accessToken;
+          setToken(token);
+          localStorage.setItem('fbToken', token);
+          navigate('/pages');
         } else {
           setError('Facebook login failed. Please try again.');
         }
@@ -22,44 +36,25 @@ const LoginPage = ({ setToken }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md transform transition-all duration-300 hover:scale-105">
+      <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">Messenger Automation</h1>
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={login}
           className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 flex items-center justify-center"
         >
           <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c2.76 0 5.26-1.12 7.07-2.93l-1.41-1.41C16.24 19.08 14.24 20 12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8c0 1.24-.28 2.41-.76 3.45l1.47 1.47C21.47 15.18 22 13.62 22 12c0-5.52-4.48-10-10-10zm-1 14v-2h2v2h-2zm0-4V8h2v4h-2z"/>
+            <path d="..." />
           </svg>
           Login with Facebook
         </button>
         {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
-        {modalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-sm">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Facebook Authentication</h2>
-              <p className="text-gray-600 mb-6">Click below to log in with your Facebook account.</p>
-              <button
-                onClick={login}
-                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-200"
-              >
-                Authenticate
-              </button>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="w-full mt-4 text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
 };
 
-const PagesPage = ({ token }) => {
+// --- Pages Page ---
+const PagesPage = ({ token, logout }) => {
   const [pages, setPages] = useState([]);
   const [selectedPage, setSelectedPage] = useState('');
   const [message, setMessage] = useState('');
@@ -100,8 +95,14 @@ const PagesPage = ({ token }) => {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } md:translate-x-0 transition-transform duration-300 z-40`}
       >
-        <div className="p-4 border-b">
+        <div className="p-4 border-b flex justify-between items-center">
           <h2 className="text-xl font-bold text-gray-800">Your Pages</h2>
+          <button
+            onClick={logout}
+            className="text-red-600 hover:text-red-800 font-semibold text-sm"
+          >
+            Logout
+          </button>
         </div>
         <div className="p-4">
           {pages.map((page) => (
@@ -141,7 +142,7 @@ const PagesPage = ({ token }) => {
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Enter message (e.g., Your account is active)"
+              placeholder="Enter message"
               className="w-full p-3 border rounded-lg resize-y min-h-[100px]"
             />
           </div>
@@ -166,17 +167,39 @@ const PagesPage = ({ token }) => {
   );
 };
 
+// --- App Component ---
 function App() {
   const [token, setToken] = useState(localStorage.getItem('fbToken') || '');
 
   useEffect(() => {
-    window.FB.init({
-      appId: '1022102683426026',
-      version: 'v20.0',
-      xfbml: true,
+    // Initialize FB SDK
+    window.fbAsyncInit = function () {
+      window.FB.init({
+        appId: '1022102683426026',
+        version: 'v20.0',
+        xfbml: true,
+      });
+    };
+
+    // Load SDK
+    (function (d, s, id) {
+      var js,
+        fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s);
+      js.id = id;
+      js.src = 'https://connect.facebook.net/en_US/sdk.js';
+      fjs.parentNode.insertBefore(js, fjs);
+    })(document, 'script', 'facebook-jssdk');
+  }, []);
+
+  const logout = () => {
+    window.FB.logout(() => {
+      localStorage.removeItem('fbToken');
+      setToken('');
+      window.location.href = '/';
     });
-    if (token) localStorage.setItem('fbToken', token);
-  }, [token]);
+  };
 
   return (
     <Router>
@@ -184,7 +207,7 @@ function App() {
         <Route path="/" element={<LoginPage setToken={setToken} />} />
         <Route
           path="/pages"
-          element={token ? <PagesPage token={token} /> : <Navigate to="/" />}
+          element={token ? <PagesPage token={token} logout={logout} /> : <Navigate to="/" />}
         />
       </Routes>
     </Router>
