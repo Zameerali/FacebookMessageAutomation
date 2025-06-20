@@ -2,17 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-// --- Login Page ---
+// Login Page Component
 const LoginPage = ({ setToken }) => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If already logged in
+    // Check if user is already logged in
     window.FB.getLoginStatus((response) => {
       if (response.status === 'connected') {
-        setToken(response.authResponse.accessToken);
-        localStorage.setItem('fbToken', response.authResponse.accessToken);
+        const fbToken = response.authResponse.accessToken;
+        setToken(fbToken);
+        localStorage.setItem('fbToken', fbToken);
         navigate('/pages');
       }
     });
@@ -43,7 +44,7 @@ const LoginPage = ({ setToken }) => {
           className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 flex items-center justify-center"
         >
           <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-            <path d="..." />
+            <path d="M22.675 0H1.325C.593 0 0 .593 0 1.326v21.348C0 23.406.593 24 1.325 24H12.82v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.658-4.788 1.325 0 2.464.099 2.797.143v3.24l-1.919.001c-1.504 0-1.796.716-1.796 1.765v2.313h3.587l-.467 3.622h-3.12V24h6.116c.73 0 1.324-.594 1.324-1.326V1.326C24 .593 23.406 0 22.675 0z" />
           </svg>
           Login with Facebook
         </button>
@@ -53,7 +54,7 @@ const LoginPage = ({ setToken }) => {
   );
 };
 
-// --- Pages Page ---
+// Pages Page Component
 const PagesPage = ({ token, logout }) => {
   const [pages, setPages] = useState([]);
   const [selectedPage, setSelectedPage] = useState('');
@@ -121,6 +122,7 @@ const PagesPage = ({ token, logout }) => {
           ))}
         </div>
       </div>
+
       {/* Main Content */}
       <div className="flex-1 p-4 md:ml-64">
         <button
@@ -167,30 +169,27 @@ const PagesPage = ({ token, logout }) => {
   );
 };
 
-// --- App Component ---
+// App Component
 function App() {
   const [token, setToken] = useState(localStorage.getItem('fbToken') || '');
 
+  // Safely load Facebook SDK
   useEffect(() => {
-    // Initialize FB SDK
     window.fbAsyncInit = function () {
       window.FB.init({
         appId: '1022102683426026',
-        version: 'v20.0',
+        cookie: true,
         xfbml: true,
+        version: 'v20.0',
       });
     };
 
-    // Load SDK
-    (function (d, s, id) {
-      var js,
-        fjs = d.getElementsByTagName(s)[0];
-      if (d.getElementById(id)) return;
-      js = d.createElement(s);
-      js.id = id;
+    if (!document.getElementById('facebook-jssdk')) {
+      const js = document.createElement('script');
+      js.id = 'facebook-jssdk';
       js.src = 'https://connect.facebook.net/en_US/sdk.js';
-      fjs.parentNode.insertBefore(js, fjs);
-    })(document, 'script', 'facebook-jssdk');
+      document.body.appendChild(js);
+    }
   }, []);
 
   const logout = () => {
