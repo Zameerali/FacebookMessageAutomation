@@ -1,32 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 
-// Login Page Component
 const LoginPage = ({ setToken }) => {
+  const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    // Check if user is already logged in
-    window.FB.getLoginStatus((response) => {
-      if (response.status === 'connected') {
-        const fbToken = response.authResponse.accessToken;
-        setToken(fbToken);
-        localStorage.setItem('fbToken', fbToken);
-        navigate('/pages');
-      }
-    });
-  }, [navigate, setToken]);
 
   const login = () => {
     window.FB.login(
       (response) => {
         if (response.authResponse) {
-          const token = response.authResponse.accessToken;
-          setToken(token);
-          localStorage.setItem('fbToken', token);
-          navigate('/pages');
+          setToken(response.authResponse.accessToken);
+          setModalOpen(false);
         } else {
           setError('Facebook login failed. Please try again.');
         }
@@ -37,25 +22,44 @@ const LoginPage = ({ setToken }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
+      <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md transform transition-all duration-300 hover:scale-105">
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">Messenger Automation</h1>
         <button
-          onClick={login}
+          onClick={() => setModalOpen(true)}
           className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 flex items-center justify-center"
         >
           <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M22.675 0H1.325C.593 0 0 .593 0 1.326v21.348C0 23.406.593 24 1.325 24H12.82v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.658-4.788 1.325 0 2.464.099 2.797.143v3.24l-1.919.001c-1.504 0-1.796.716-1.796 1.765v2.313h3.587l-.467 3.622h-3.12V24h6.116c.73 0 1.324-.594 1.324-1.326V1.326C24 .593 23.406 0 22.675 0z" />
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c2.76 0 5.26-1.12 7.07-2.93l-1.41-1.41C16.24 19.08 14.24 20 12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8c0 1.24-.28 2.41-.76 3.45l1.47 1.47C21.47 15.18 22 13.62 22 12c0-5.52-4.48-10-10-10zm-1 14v-2h2v2h-2zm0-4V8h2v4h-2z"/>
           </svg>
           Login with Facebook
         </button>
         {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
+        {modalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-sm">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Facebook Authentication</h2>
+              <p className="text-gray-600 mb-6">Click below to log in with your Facebook account.</p>
+              <button
+                onClick={login}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-200"
+              >
+                Authenticate
+              </button>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="w-full mt-4 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-// Pages Page Component
-const PagesPage = ({ token, logout }) => {
+const PagesPage = ({ token }) => {
   const [pages, setPages] = useState([]);
   const [selectedPage, setSelectedPage] = useState('');
   const [message, setMessage] = useState('');
@@ -96,14 +100,8 @@ const PagesPage = ({ token, logout }) => {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } md:translate-x-0 transition-transform duration-300 z-40`}
       >
-        <div className="p-4 border-b flex justify-between items-center">
+        <div className="p-4 border-b">
           <h2 className="text-xl font-bold text-gray-800">Your Pages</h2>
-          <button
-            onClick={logout}
-            className="text-red-600 hover:text-red-800 font-semibold text-sm"
-          >
-            Logout
-          </button>
         </div>
         <div className="p-4">
           {pages.map((page) => (
@@ -122,7 +120,6 @@ const PagesPage = ({ token, logout }) => {
           ))}
         </div>
       </div>
-
       {/* Main Content */}
       <div className="flex-1 p-4 md:ml-64">
         <button
@@ -144,7 +141,7 @@ const PagesPage = ({ token, logout }) => {
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Enter message"
+              placeholder="Enter message (e.g., Your account is active)"
               className="w-full p-3 border rounded-lg resize-y min-h-[100px]"
             />
           </div>
@@ -169,36 +166,17 @@ const PagesPage = ({ token, logout }) => {
   );
 };
 
-// App Component
 function App() {
   const [token, setToken] = useState(localStorage.getItem('fbToken') || '');
 
-  // Safely load Facebook SDK
   useEffect(() => {
-    window.fbAsyncInit = function () {
-      window.FB.init({
-        appId: '1022102683426026',
-        cookie: true,
-        xfbml: true,
-        version: 'v20.0',
-      });
-    };
-
-    if (!document.getElementById('facebook-jssdk')) {
-      const js = document.createElement('script');
-      js.id = 'facebook-jssdk';
-      js.src = 'https://connect.facebook.net/en_US/sdk.js';
-      document.body.appendChild(js);
-    }
-  }, []);
-
-  const logout = () => {
-    window.FB.logout(() => {
-      localStorage.removeItem('fbToken');
-      setToken('');
-      window.location.href = '/';
+    window.FB.init({
+      appId: '1022102683426026',
+      version: 'v20.0',
+      xfbml: true,
     });
-  };
+    if (token) localStorage.setItem('fbToken', token);
+  }, [token]);
 
   return (
     <Router>
@@ -206,7 +184,7 @@ function App() {
         <Route path="/" element={<LoginPage setToken={setToken} />} />
         <Route
           path="/pages"
-          element={token ? <PagesPage token={token} logout={logout} /> : <Navigate to="/" />}
+          element={token ? <PagesPage token={token} /> : <Navigate to="/" />}
         />
       </Routes>
     </Router>
